@@ -1,1 +1,19 @@
-{"vues": {}, "empreintes": {}, "initialisees": []}
+{
+  "vues": {},
+  "empreintes": {
+    "Naef": "38495250ea995da926ea1dd4bfab4cb44171212502504abf86e3170527e2ceb5",
+    "Zimmermann": "9950ef020fa2259d3695943d446de1de93db4b1ff1b2619dabe79120d55b624b",
+    "Pilet & Renaud": "c67d51568a1eb08a14fde9d9cee7acd83e85874849cfd677d49aa7faadc774a0",
+    "Moser Vernet & Cie": "85d8b1fadf9e7c39d508f3018bef4b4ca7d102ee3f3cf870a9b793577dd1480e",
+    "Comptoir Immobilier": "ec96b2b81c0f2b25809a064198c3e2b094cb8eafa543baf543fea8d2ad09e191",
+    "Gerofinance": "19e6617dcb463b6a76b6453342a5d7cacaf1ea6e802305b5ed802ca643982a3b",
+    "SPG": "4c8ead6c4a84f28fe752981acc288b7eafb3c03516e68054ae949f2953ce2427",
+    "Bory & Cie": "b3d03f1598f537a8d8d7e730725a0c164e866ad33d061f154e5b9a46e25fea8e",
+    "Wincasa": "84bd0fde78900b1465bfa67aa50a5aff52f93a59a7bbc105284e3d7dead5917b",
+    "Rosset & Cie": "9c284c86940601b72feb183101cbf4d4df569f4cb707b458e235ab3d215cf11a",
+    "Privera": "f2a1ba47ee18f13f69aa9588de610594487021d36651363b0f2b5d502c8ba9c3",
+    "Daudin": "dd39fb2e13aeb320e04d136d44c587886f7982a78b2e1e2f80d6b3b4a824f731",
+    "Edouard Brun & Cie": "2e030662394196a8a4382a88cb86dd624cd7fbf6294174db72c848df5859bdf2"
+  },
+  "initialisees": []
+}
