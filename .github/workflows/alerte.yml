@@ -1,0 +1,51 @@
+name: Alerte logement Genève
+
+on:
+  schedule:
+    # Heures en UTC. Semaine : toutes les 10 min de ~7h à ~21h (heure de Genève).
+    - cron: "*/10 5-19 * * 1-5"
+    # Week-end : toutes les heures.
+    - cron: "0 6-19 * * 0,6"
+  workflow_dispatch: {}   # bouton "Run workflow" pour tester à la main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: alerte-logement
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Lancer l'agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+        run: python agent.py
+
+      - name: Sauvegarder les annonces déjà vues
+        if: always()
+        run: |
+          git config user.name "alerte-bot"
+          git config user.email "alerte-bot@users.noreply.github.com"
+          git add state.json diagnostic.json 2>/dev/null || git add state.json
+          git diff --staged --quiet || (git commit -m "maj état" && git push)
