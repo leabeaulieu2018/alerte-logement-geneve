@@ -1,43 +1,55 @@
 """
-Agent d'alerte logement Genève.
+Agent d'alerte logement Genève — version hybride.
 
-Toutes les X minutes :
-  1. ouvre la page "location" (déjà filtrée) de chaque régie ;
-  2. si la liste des annonces a changé, demande à Claude d'en extraire les annonces ;
-  3. filtre selon tes critères (loyer, NPA, pièces, type) ;
-  4. pour chaque NOUVELLE annonce, ouvre la fiche, extrait contact + visites ;
-  5. t'envoie un e-mail par annonce.
+Détection (GRATUITE, sans IA) :
+  à chaque passage, on liste les liens de la page de résultats de chaque régie.
+  Un lien jamais vu auparavant = une nouvelle annonce probable.
+
+Analyse de l'annonce :
+  - avec ANTHROPIC_API_KEY : Claude lit la fiche (contact, visites, loyer, NPA) et filtre finement ;
+  - sans clé : extraction par motifs (CHF, téléphones, e-mails, lignes "visite").
 """
 
 import hashlib
 import html
 import json
 import os
+import re
 import smtplib
 import sys
 import time
 from datetime import datetime
 from email.message import EmailMessage
 from urllib import robotparser
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urldefrag
 
-import anthropic
 import yaml
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 STATE_FILE = os.path.join(ROOT, "state.json")
+DIAG_FILE = os.path.join(ROOT, "diagnostic.json")
 CONFIG_FILE = os.path.join(ROOT, "config.yaml")
 
-MODEL = os.environ.get("CLAUDE_MODEL", "claude-haiku-5-5")
 USER_AGENT = "Mozilla/5.0 (compatible; AlerteLogementGeneve/1.0; usage personnel)"
-MAX_CHARS = 30000          # texte envoyé à Claude par page
-PAUSE_ENTRE_PAGES = 3      # secondes, pour rester poli avec les sites
+PAUSE = 3                 # secondes entre deux pages
+MAX_NOUVEAUX = 15         # au-delà, on suppose un changement du site, pas 15 annonces d'un coup
+MAX_CHARS = 25000
 
-client = anthropic.Anthropic()  # lit ANTHROPIC_API_KEY
+USE_CLAUDE = bool(os.environ.get("ANTHROPIC_API_KEY"))
+MODEL = os.environ.get("CLAUDE_MODEL", "claude-haiku-5-5")
+if USE_CLAUDE:
+    import anthropic
+    client = anthropic.Anthropic()
 
+# Liens qui ne sont jamais des annonces
+EXCLUS = re.compile(
+    r"(mailto:|tel:|javascript:|\.pdf$|\.jpg$|\.png$|login|connexion|contact|actualit|news|blog|"
+    r"carriere|emploi|jobs|mentions|privacy|confidentialit|cookies|facebook|instagram|linkedin|"
+    r"youtube|twitter|x\.com|google|apple\.com|acheter|vente|/buy|parking|depot|commercial)",
+    re.I,
+)
 
-# --------------------------------------------------------------------------- utilitaires
 
 def log(msg):
     print(f"[{datetime.now():%H:%M:%S}] {msg}", flush=True)
@@ -56,193 +68,217 @@ def save_json(path, data):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-_robots_cache = {}
+_robots = {}
 
 
-def autorise_par_robots(url):
-    """Respecte le robots.txt de chaque site."""
+def autorise(url):
     p = urlparse(url)
     base = f"{p.scheme}://{p.netloc}"
-    if base not in _robots_cache:
+    if base not in _robots:
         rp = robotparser.RobotFileParser()
         rp.set_url(base + "/robots.txt")
         try:
             rp.read()
         except Exception:
-            rp = None  # robots.txt illisible : on considère autorisé
-        _robots_cache[base] = rp
-    rp = _robots_cache[base]
-    return True if rp is None else rp.can_fetch(USER_AGENT, url)
+            rp = None
+        _robots[base] = rp
+    return _robots[base] is None or _robots[base].can_fetch(USER_AGENT, url)
 
 
-def ask_claude_json(prompt, max_tokens=4000):
-    msg = client.messages.create(
-        model=MODEL,
-        max_tokens=max_tokens,
-        system="Tu es un extracteur de données. Tu réponds UNIQUEMENT avec du JSON valide, "
-               "sans texte autour ni balises markdown.",
-        messages=[{"role": "user", "content": prompt}],
-    )
-    text = "".join(b.text for b in msg.content if b.type == "text").strip()
-    text = text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-    return json.loads(text)
+def domaine_racine(url):
+    host = urlparse(url).netloc.lower()
+    return ".".join(host.split(".")[-2:])
 
 
 # --------------------------------------------------------------------------- navigation
 
 def lire_page(browser, url):
-    """Retourne (texte visible, liste de liens [texte, href]) d'une page, JavaScript inclus."""
     page = browser.new_page(user_agent=USER_AGENT, locale="fr-CH")
     try:
-        page.goto(url, wait_until="networkidle", timeout=60000)
-        # fait défiler pour charger les annonces en "lazy loading"
-        for _ in range(4):
+        page.goto(url, wait_until="domcontentloaded", timeout=60000)
+        try:                                     # attend la fin du chargement, sans bloquer
+            page.wait_for_load_state("networkidle", timeout=15000)
+        except Exception:
+            page.wait_for_timeout(5000)          # site "bavard" (ex. Grange) : on continue quand même
+        for _ in range(5):                       # charge les annonces en "lazy loading"
             page.mouse.wheel(0, 4000)
-            page.wait_for_timeout(700)
+            page.wait_for_timeout(800)
         texte = page.inner_text("body")
+        titre = page.title()
         liens = page.eval_on_selector_all(
-            "a[href]",
-            "els => els.map(e => [(e.innerText || '').trim().slice(0, 150), e.href])",
+            "a[href]", "els => els.map(e => [(e.innerText || '').trim().slice(0, 120), e.href])"
         )
-        return texte, liens
+        return titre, texte, liens
     finally:
         page.close()
 
 
-# --------------------------------------------------------------------------- extraction
+def liens_annonces(regie, liens):
+    """Liens candidats : même site, pas de navigation évidente, filtrés par 'motif' si défini."""
+    racine = domaine_racine(regie["url"])
+    motif = re.compile(regie["motif"], re.I) if regie.get("motif") else None
+    page_resultats = urldefrag(regie["url"])[0]
+    res = {}
+    for texte, href in liens:
+        href = urldefrag(href)[0].rstrip("/")
+        if not href.startswith("http") or domaine_racine(href) != racine:
+            continue
+        if href == page_resultats.rstrip("/"):
+            continue
+        if motif:
+            if not motif.search(href):
+                continue
+        elif EXCLUS.search(href):
+            continue
+        res[href] = texte
+    return res
 
-def extraire_annonces(regie, texte, liens):
-    domaine = urlparse(regie["url"]).netloc
-    liens_utiles = [l for l in liens if domaine in l[1] and l[1].startswith("http")]
-    liste_liens = "\n".join(f"- {t} -> {h}" for t, h in liens_utiles[:400])
 
-    prompt = f"""Voici le contenu d'une page de résultats de location de la régie « {regie['nom']} » à Genève.
+# --------------------------------------------------------------------------- analyse d'une annonce
 
-TEXTE DE LA PAGE :
+RE_TEL = re.compile(r"(?:\+41|0041|\b0)\s?\(?0?\)?\s?\d{2}[\s.]?\d{3}[\s.]?\d{2}[\s.]?\d{2}")
+RE_MAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
+RE_MONTANT = re.compile(r"(\d{1,2}[’'\s.]?\d{3}|\d{3,4})(?:[.,]\d{2}|\.-|\.–)?")
+
+
+def nombre(s):
+    return int(re.sub(r"[^\d]", "", s))
+
+
+def analyse_sans_ia(texte):
+    lignes = [l.strip() for l in texte.splitlines() if l.strip()]
+    loyer = None
+    for l in lignes:                                # 1re ligne "loyer" qui contient un montant plausible
+        if re.search(r"loyer|prix|chf", l, re.I):
+            for m in RE_MONTANT.findall(l):
+                v = nombre(m)
+                if 300 <= v <= 10000:
+                    loyer = v
+                    break
+        if loyer:
+            break
+    cles = re.compile(r"pi[eè]ces?|m²|m2|[ée]tage|disponib|charges", re.I)
+    return {
+        "loyer_total_chf": loyer,
+        "contact": {
+            "telephone": ", ".join(list(dict.fromkeys(RE_TEL.findall(texte)))[:2]) or None,
+            "email": ", ".join(list(dict.fromkeys(RE_MAIL.findall(texte)))[:2]) or None,
+        },
+        "lignes_visite": [l[:200] for l in lignes if re.search(r"visite", l, re.I)][:4],
+        "extrait": [l[:160] for l in lignes if cles.search(l)][:8],
+    }
+
+
+def analyse_claude(regie, url, texte):
+    prompt = f"""Page web de la régie « {regie['nom']} » ({url}) :
+
 {texte[:MAX_CHARS]}
 
-LIENS DE LA PAGE :
-{liste_liens}
-
-Retourne un tableau JSON des annonces de LOCATION de logements présentes sur la page.
-Ignore parkings, boxes, bureaux, arcades, dépôts et annonces de vente.
-Chaque élément :
+Retourne UNIQUEMENT un objet JSON :
 {{
-  "url": "lien vers la fiche, choisi parmi les liens fournis",
-  "titre": "string",
+  "est_annonce_location_logement": true/false (false si ce n'est pas la fiche d'UN logement à louer),
   "adresse": "string ou null",
-  "npa": "code postal à 4 chiffres en string, ou null",
-  "commune": "string ou null",
-  "type": "appartement" | "maison" | "studio" | "autre",
+  "npa": "code postal 4 chiffres ou null",
   "pieces": nombre ou null,
-  "loyer_chf": nombre (loyer mensuel charges comprises si possible) ou null,
   "surface_m2": nombre ou null,
-  "disponibilite": "string ou null"
-}}
-S'il n'y a aucune annonce, retourne []."""
-    return ask_claude_json(prompt)
-
-
-def extraire_details(regie, url, texte):
-    prompt = f"""Voici le texte d'une fiche d'annonce de location de la régie « {regie['nom']} » à Genève ({url}).
-
-{texte[:MAX_CHARS]}
-
-Retourne un objet JSON :
-{{
-  "adresse": "string ou null",
-  "pieces": nombre ou null,
   "etage": "string ou null",
-  "surface_m2": nombre ou null,
   "loyer_net_chf": nombre ou null,
   "charges_chf": nombre ou null,
   "loyer_total_chf": nombre ou null,
   "disponibilite": "string ou null",
   "contact": {{"nom": "string ou null", "telephone": "string ou null", "email": "string ou null"}},
   "visites": [{{"date": "string", "heure": "string ou null", "details": "string ou null"}}],
-  "comment_postuler": "string ou null (formulaire en ligne, e-mail, inscription à la visite, documents demandés...)",
-  "resume": "2 phrases max sur le logement"
+  "comment_postuler": "string ou null",
+  "resume": "2 phrases max"
 }}
-N'invente rien : mets null si l'information n'est pas dans le texte."""
-    return ask_claude_json(prompt, max_tokens=2000)
+N'invente rien : null si absent."""
+    msg = client.messages.create(
+        model=MODEL, max_tokens=1500,
+        system="Tu réponds uniquement avec du JSON valide, sans texte autour.",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    t = "".join(b.text for b in msg.content if b.type == "text").strip()
+    t = t.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    return json.loads(t)
 
 
-# --------------------------------------------------------------------------- filtre
-
-def correspond(annonce, c):
-    loyer = annonce.get("loyer_chf")
-    if loyer is not None:
+def correspond(d, texte, c):
+    loyer = d.get("loyer_total_chf") or d.get("loyer_net_chf")
+    if loyer:
         if c.get("loyer_min") and loyer < c["loyer_min"]:
             return False
         if c.get("loyer_max") and loyer > c["loyer_max"]:
             return False
-    npa = (annonce.get("npa") or "").strip()
-    if c.get("npa") and npa and npa not in [str(n) for n in c["npa"]]:
-        return False
-    pieces = annonce.get("pieces")
-    if pieces is not None:
-        if c.get("pieces_min") and pieces < c["pieces_min"]:
+    npas = [str(n) for n in c.get("npa") or []]
+    if npas:
+        if d.get("npa"):                            # mode Claude : NPA précis
+            if str(d["npa"]) not in npas:
+                return False
+        elif not any(re.search(rf"\b{n}\b", texte) for n in npas):   # mode sans IA
             return False
-        if c.get("pieces_max") and pieces > c["pieces_max"]:
+    p = d.get("pieces")
+    if p:
+        if c.get("pieces_min") and p < c["pieces_min"]:
             return False
-    if c.get("types") and annonce.get("type") not in c["types"]:
-        return False
+        if c.get("pieces_max") and p > c["pieces_max"]:
+            return False
     return True
 
 
 # --------------------------------------------------------------------------- e-mail
 
-def envoyer_mail(regie, annonce, d):
-    def v(x, defaut="—"):
-        return html.escape(str(x)) if x not in (None, "", []) else defaut
+def v(x, defaut="—"):
+    return html.escape(str(x)) if x not in (None, "", []) else defaut
 
-    loyer = d.get("loyer_total_chf") or annonce.get("loyer_chf")
-    pieces = d.get("pieces") or annonce.get("pieces")
-    adresse = d.get("adresse") or annonce.get("adresse") or annonce.get("titre")
 
-    visites = d.get("visites") or []
-    visites_html = "".join(
-        f"<li><b>{v(x.get('date'))}</b> {v(x.get('heure'), '')} {v(x.get('details'), '')}</li>"
-        for x in visites
-    ) or "<li>Aucune visite indiquée dans l'annonce</li>"
-
+def envoyer_mail(regie, url, titre, d):
     contact = d.get("contact") or {}
-    corps = f"""
-<div style="font-family:Arial,sans-serif;font-size:14px;max-width:600px">
-  <h2 style="margin:0 0 8px">{v(pieces)} pièces · {v(loyer)} CHF/mois</h2>
-  <p style="margin:0 0 12px;color:#555">{v(adresse)} · <b>{v(regie['nom'])}</b></p>
-  <p><a href="{html.escape(annonce['url'])}" style="background:#1a56db;color:#fff;padding:10px 16px;
-     border-radius:6px;text-decoration:none">Ouvrir l'annonce</a></p>
-  <h3>Visites</h3><ul>{visites_html}</ul>
-  <h3>Contact</h3>
-  <p>{v(contact.get('nom'))}<br>📞 {v(contact.get('telephone'))}<br>✉️ {v(contact.get('email'))}</p>
-  <h3>Comment postuler</h3><p>{v(d.get('comment_postuler'))}</p>
-  <h3>Détails</h3>
-  <p>Loyer net : {v(d.get('loyer_net_chf'))} CHF · Charges : {v(d.get('charges_chf'))} CHF<br>
-     Surface : {v(d.get('surface_m2') or annonce.get('surface_m2'))} m² · Étage : {v(d.get('etage'))}<br>
-     Disponibilité : {v(d.get('disponibilite') or annonce.get('disponibilite'))}</p>
-  <p style="color:#555">{v(d.get('resume'), '')}</p>
-  <p style="color:#999;font-size:12px">Informations extraites automatiquement : vérifie sur l'annonce.</p>
-</div>"""
+    loyer = d.get("loyer_total_chf") or d.get("loyer_net_chf")
+    if d.get("visites"):
+        visites = "".join(f"<li><b>{v(x.get('date'))}</b> {v(x.get('heure'), '')} {v(x.get('details'), '')}</li>"
+                          for x in d["visites"])
+    elif d.get("lignes_visite"):
+        visites = "".join(f"<li>{v(l)}</li>" for l in d["lignes_visite"])
+    else:
+        visites = "<li>Aucune visite repérée : voir l'annonce</li>"
+
+    blocs = ""
+    if d.get("comment_postuler"):
+        blocs += f"<h3>Comment postuler</h3><p>{v(d['comment_postuler'])}</p>"
+    details = [("Adresse", d.get("adresse")), ("Pièces", d.get("pieces")), ("Surface", d.get("surface_m2")),
+               ("Étage", d.get("etage")), ("Charges", d.get("charges_chf")), ("Disponibilité", d.get("disponibilite"))]
+    details = "".join(f"{k} : {v(x)}<br>" for k, x in details if x)
+    if details:
+        blocs += f"<h3>Détails</h3><p>{details}</p>"
+    if d.get("resume"):
+        blocs += f"<p style='color:#555'>{v(d['resume'])}</p>"
+    if d.get("extrait"):
+        blocs += "<h3>Extrait de l'annonce</h3><ul>" + "".join(f"<li>{v(l)}</li>" for l in d["extrait"]) + "</ul>"
+
+    corps = f"""<div style="font-family:Arial,sans-serif;font-size:14px;max-width:600px">
+<h2 style="margin:0 0 6px">{v(titre)}</h2>
+<p style="margin:0 0 12px;color:#555"><b>{v(regie['nom'])}</b> · Loyer repéré : {v(loyer)} CHF</p>
+<p><a href="{html.escape(url)}" style="background:#1a56db;color:#fff;padding:10px 16px;border-radius:6px;
+text-decoration:none">Ouvrir l'annonce</a></p>
+<h3>Visites</h3><ul>{visites}</ul>
+<h3>Contact</h3><p>{v(contact.get('nom'), '')}<br>📞 {v(contact.get('telephone'))}<br>✉️ {v(contact.get('email'))}</p>
+{blocs}
+<p style="color:#999;font-size:12px">Extraction automatique : vérifie toujours sur l'annonce.</p></div>"""
 
     msg = EmailMessage()
-    msg["Subject"] = f"🏠 {pieces or '?'} p. · {loyer or '?'} CHF · {adresse} ({regie['nom']})"
-    msg["From"] = os.environ.get("MAIL_FROM", os.environ["SMTP_USER"])
+    msg["Subject"] = f"🏠 {regie['nom']} · {loyer or '?'} CHF · {titre[:70]}"
+    msg["From"] = os.environ.get("MAIL_FROM") or os.environ["SMTP_USER"]
     msg["To"] = os.environ["MAIL_TO"]
-    msg.set_content(f"Nouvelle annonce : {annonce['url']}")
+    msg.set_content(f"Nouvelle annonce {regie['nom']} : {url}")
     msg.add_alternative(corps, subtype="html")
 
-    host = os.environ["SMTP_HOST"]
-    port = int(os.environ.get("SMTP_PORT", "587"))
-    if port == 465:
-        with smtplib.SMTP_SSL(host, port) as s:
-            s.login(os.environ["SMTP_USER"], os.environ["SMTP_PASSWORD"])
-            s.send_message(msg)
-    else:
-        with smtplib.SMTP(host, port) as s:
+    host, port = os.environ["SMTP_HOST"], int(os.environ.get("SMTP_PORT") or 587)
+    smtp = smtplib.SMTP_SSL(host, port) if port == 465 else smtplib.SMTP(host, port)
+    with smtp as s:
+        if port != 465:
             s.starttls()
-            s.login(os.environ["SMTP_USER"], os.environ["SMTP_PASSWORD"])
-            s.send_message(msg)
+        s.login(os.environ["SMTP_USER"], os.environ["SMTP_PASSWORD"])
+        s.send_message(msg)
 
 
 # --------------------------------------------------------------------------- boucle principale
@@ -250,73 +286,70 @@ def envoyer_mail(regie, annonce, d):
 def main():
     with open(CONFIG_FILE, encoding="utf-8") as f:
         config = yaml.safe_load(f)
-    criteres = config["criteres"]
+    crit = config["criteres"]
     regies = [r for r in config["regies"] if r.get("url")]
-    if not regies:
-        log("Aucune URL de régie renseignée dans config.yaml.")
-        return
-
-    state = load_json(STATE_FILE, {"vues": {}, "empreintes": {}, "initialisees": []})
+    state = load_json(STATE_FILE, {"vus": {}})
+    diag = {}
     envoyes = 0
+    log(f"Mode : {'Claude' if USE_CLAUDE else 'sans IA'} · {len(regies)} régies")
 
     with sync_playwright() as p:
         browser = p.chromium.launch()
         for regie in regies:
-            nom, url = regie["nom"], regie["url"]
+            nom = regie["nom"]
             try:
-                if not autorise_par_robots(url):
-                    log(f"{nom} : robots.txt interdit cette page, ignorée.")
+                if not autorise(regie["url"]):
+                    log(f"{nom} : robots.txt interdit l'accès, ignorée.")
                     continue
+                _, _, liens = lire_page(browser, regie["url"])
+                time.sleep(PAUSE)
+                candidats = liens_annonces(regie, liens)
+                diag[nom] = [f"{t} -> {h}" for h, t in candidats.items()]
 
-                texte, liens = lire_page(browser, url)
-                time.sleep(PAUSE_ENTRE_PAGES)
-
-                # Empreinte = ensemble des liens de la page : si rien n'a bougé, on n'appelle pas Claude.
-                empreinte = hashlib.sha256(
-                    "\n".join(sorted({h for _, h in liens})).encode()
-                ).hexdigest()
-                if state["empreintes"].get(nom) == empreinte:
-                    log(f"{nom} : inchangé.")
-                    continue
-                state["empreintes"][nom] = empreinte
-
-                annonces = extraire_annonces(regie, texte, liens)
-                premiere_fois = nom not in state["initialisees"]
-                nouvelles = [a for a in annonces if a.get("url") and a["url"] not in state["vues"]]
-                log(f"{nom} : {len(annonces)} annonces, {len(nouvelles)} nouvelles.")
-
-                for a in nouvelles:
-                    state["vues"][a["url"]] = datetime.now().isoformat(timespec="minutes")
-                    if premiere_fois and not config.get("envoyer_au_premier_passage", False):
-                        continue  # 1er passage : on mémorise l'existant sans t'inonder de mails
-                    if not correspond(a, criteres):
-                        continue
-                    details = {}
-                    if autorise_par_robots(a["url"]):
-                        try:
-                            t, _ = lire_page(browser, a["url"])
-                            details = extraire_details(regie, a["url"], t)
-                            time.sleep(PAUSE_ENTRE_PAGES)
-                        except Exception as e:
-                            log(f"  détails indisponibles ({e}), envoi quand même.")
-                    if not correspond({**a, **{k: v for k, v in {
-                        "loyer_chf": details.get("loyer_total_chf"),
-                        "pieces": details.get("pieces")}.items() if v is not None}}, criteres):
-                        continue
-                    envoyer_mail(regie, a, details)
-                    envoyes += 1
-                    log(f"  ✉️  envoyé : {a.get('titre') or a['url']}")
+                vus = state["vus"].setdefault(nom, {})
+                premiere_fois = not vus
+                nouveaux = [h for h in candidats if h not in vus]
+                now = datetime.now().isoformat(timespec="minutes")
+                for h in nouveaux:
+                    vus[h] = now
 
                 if premiere_fois:
-                    state["initialisees"].append(nom)
+                    log(f"{nom} : 1er passage, {len(candidats)} liens mémorisés (aucun mail).")
+                    continue
+                if len(nouveaux) > MAX_NOUVEAUX:
+                    log(f"{nom} : {len(nouveaux)} nouveaux liens d'un coup, probablement une refonte du site. "
+                        f"Mémorisés sans mail ; ajoute un 'motif' dans config.yaml si ça se répète.")
+                    continue
+                log(f"{nom} : {len(candidats)} liens, {len(nouveaux)} nouveaux.")
 
+                for url in nouveaux:
+                    if not autorise(url):
+                        continue
+                    try:
+                        titre, texte, _ = lire_page(browser, url)
+                        time.sleep(PAUSE)
+                        if USE_CLAUDE:
+                            d = analyse_claude(regie, url, texte)
+                            if not d.get("est_annonce_location_logement", True):
+                                log(f"  pas une annonce : {url}")
+                                continue
+                        else:
+                            d = analyse_sans_ia(texte)
+                        if not correspond(d, texte, crit):
+                            log(f"  hors critères : {url}")
+                            continue
+                        envoyer_mail(regie, url, titre or candidats[url] or url, d)
+                        envoyes += 1
+                        log(f"  ✉️  envoyé : {url}")
+                    except Exception as e:
+                        log(f"  erreur sur {url} : {e}")
             except Exception as e:
                 log(f"{nom} : ERREUR {type(e).__name__}: {e}")
             finally:
-                save_json(STATE_FILE, state)  # sauvegarde après chaque régie
-
+                save_json(STATE_FILE, state)
         browser.close()
 
+    save_json(DIAG_FILE, diag)
     log(f"Terminé : {envoyes} e-mail(s) envoyé(s).")
 
 

@@ -1,53 +1,60 @@
 # ---------------------------------------------------------------
-# Critères (repris de ton lien immobilier.ch)
+# Critères appliqués par l'agent (en plus des filtres de chaque site)
 # ---------------------------------------------------------------
 criteres:
   loyer_min: 1000
   loyer_max: 1600
-  # Ville de Genève = NPA 1201 à 1209. Ajoute d'autres NPA si tu veux élargir (ex. 1227 Carouge).
+  # Ville de Genève = NPA 1201 à 1209. Ajoute-en pour élargir (ex. 1227 Carouge, 1205...).
   npa: [1201, 1202, 1203, 1204, 1205, 1206, 1207, 1208, 1209]
-  pieces_min: null      # ex. 2
+  pieces_min: null
   pieces_max: null
-  types: [appartement, maison, studio]
-
-# Au tout premier passage, l'agent mémorise les annonces déjà en ligne sans t'envoyer de mail.
-# Mets true si tu veux recevoir aussi celles qui existent déjà.
-envoyer_au_premier_passage: true
 
 # ---------------------------------------------------------------
 # Régies surveillées
-# Pour chaque régie : va sur son site, page "Louer", applique tes filtres
-# (Genève, loyer max 1600, etc.), puis copie l'URL de la page de résultats ici.
-# Une régie sans URL est simplement ignorée.
-# Liste indicative à valider : garde celles qui apparaissent le plus souvent
-# dans tes résultats immobilier.ch.
+# 'motif' (optionnel) : une partie d'URL que seules les annonces contiennent,
+# ex. "/objet/" ou "bien_id=". Laisse vide au début : l'agent détecte seul
+# les nouveaux liens, et diagnostic.json te montre les liens trouvés.
 # ---------------------------------------------------------------
 regies:
   - nom: Naef
     url: "https://www.naef.ch/louer/appartements-maisons/geneve/geneve-ville/?budgetMax=1%27600&sortingField=prix_desc&zoom=13"
+    motif: ""
   - nom: Zimmermann
     url: "https://www.zimmo.ch/rent.html?search-state-ge=on&search-app=on&search-furnished=on&search-room-1=on&search-room-2=on&search-surface-50=on&search-price-1000=on&search-price-2000=on"
+    motif: ""
   - nom: Pilet & Renaud
     url: "https://www.pilet-renaud.ch/fr/louer/appartements#dHJhbnNhY3Rpb249cmVudCZ0eXBlPUFQUEFSVEVNRU5UJnJvb21fbWluPTEmcm9vbV9tYXg9MyZwcmljZV9tYXg9MTYwMCZwcmljZV9taW49NTAmc3VyZmFjZV9taW49MTAmc3VyZmFjZV9tYXg9MzAwJm9yZGVyX2J5PWFzYw=="
+    motif: ""
   - nom: Moser Vernet & Cie
     url: "https://www.moservernet.ch/louer/appartements-geneve/tous/tous/"
+    motif: ""
   - nom: Comptoir Immobilier
-    url: "https://comptoir-immo.ch/location/appartement/Gen%C3%A8ve/Gen%C3%A8ve/?surface-min=0&surface-max=2%27500%2B&rooms-min=1%2C0&rooms-max=10%2C0%2B&price-min=0&price-max=2%27000&ref=&lat=46.2043907&lng=6.1431577&zoom=&form_nonce=71ed988acc&sortby=published_desc"
+    url: "https://comptoir-immo.ch/location/appartement/Gen%C3%A8ve/Gen%C3%A8ve/?surface-min=0&surface-max=2%27500%2B&rooms-min=1%2C0&rooms-max=10%2C0%2B&price-min=0&price-max=2%27000&ref=&lat=46.2043907&lng=6.1431577&zoom=&sortby=published_desc"
+    motif: ""
   - nom: Gerofinance
     url: "https://www.gerofinance.ch/p3157-appartements-maisons.html?select_type=1&localite_localisation=Geneve%2C1200&adresse_localisation=1&canton_localisation=1&loc_n=46.19&loc_e=6.148&reference=&localite_localisation_name=Geneve&code_cp=1200&localisation=1&rayon=0%7C40&fake_mini_rayon=0&fake_maxi_rayon=40&type%5B%5D=1&type%5B%5D=12&type%5B%5D=2&type%5B%5D=10&interval_price=1000%7C1600&fake_mini_interval_price=590&fake_maxi_interval_price=22500&interval_nbr_pieces=0%7C11&fake_mini_interval_nbr_pieces=0&fake_maxi_interval_nbr_pieces=11&interval_surface=0%7C380&fake_mini_interval_surface=0&fake_maxi_interval_surface=380&interval_etage=0%7C50&fake_mini_interval_etage=0&fake_maxi_interval_etage=50&global_search=&type%5B%5D=1&type%5B%5D=12&type%5B%5D=2&type%5B%5D=10&interval_price=1000%7C1600&fake_mini_interval_price=1000&fake_maxi_interval_price=1600&interval_nbr_pieces=0%7C11&fake_mini_interval_nbr_pieces=0&fake_maxi_interval_nbr_pieces=11&interval_surface=0%7C380&fake_mini_interval_surface=0&fake_maxi_interval_surface=380&interval_etage=0%7C50&fake_mini_interval_etage=0&fake_maxi_interval_etage=50&order_by=prix%7Casc&bien_id="
+    motif: ""
   - nom: SPG
     url: "https://www.spg.ch/location/appartement/geneve/?city=Gen%C3%A8ve%2C+Suisse&radius=10&lat=46.2043907&lng=6.1431577&property_price=1000%2C1600"
+    motif: ""
   - nom: Bory & Cie
     url: "https://www.bory.ch/louer?areaMin=0&areaMax=79&first=20&after=&last=&before=&roomsMin=0&roomsMax=3&coordinates=46.2043907%2C+6.143157699999961&radius=33"
+    motif: ""
   - nom: Wincasa
     url: "https://wincasa.ch/fr-ch/locataires-potentiel/logements"
+    motif: ""
   - nom: Rosset & Cie
     url: "https://www.rosset.ch/louer?location=Gen%C3%A8ve&locationKind=canton&types=appartement&maxPrice=1600"
+    motif: ""
   - nom: Grange & Cie
     url: "https://www.grange.ch/a-louer/appartement/?filter_location=Gen%C3%A8ve"
+    motif: ""
   - nom: Privera
     url: "https://www.privera.ch/fr/offre-de-biens-immobiliers/annonces"
+    motif: ""
   - nom: Daudin
     url: "https://www.daudin.ch/a-louer/"
+    motif: ""
   - nom: Edouard Brun & Cie
     url: "https://www.regiebrun.ch/louer/appt?surface=0,50&room=1,3"
+    motif: ""
