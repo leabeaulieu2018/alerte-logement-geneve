@@ -197,7 +197,9 @@
       "https://www.moservernet.ch/louer/appartements-geneve/geneve/chene-bourg-1225/chene-bourg-41-j-avenue-du-petit-senn-3eme": "2026-11-06T13:45",
       "https://www.moservernet.ch/louer/appartements-geneve/geneve/geneve-1204/studio-dans-lhyper-centre-de-la-cite-2": "2026-11-06T14:41",
       "https://www.moservernet.ch/louer/appartements-geneve/geneve/geneve-15-1202/lumineux-dans-les-combles": "2026-11-06T18:19",
-      "https://www.moservernet.ch/louer/appartements-geneve/geneve/geneve-15-1202/bel-appartement-dans-les-combles": "2026-11-09T08:47"
+      "https://www.moservernet.ch/louer/appartements-geneve/geneve/geneve-15-1202/bel-appartement-dans-les-combles": "2026-11-09T08:47",
+      "https://www.moservernet.ch/louer/appartements-geneve/geneve/geneve-15-1201/bel-appartement-dans-les-combles": "2026-11-09T16:00",
+      "https://www.moservernet.ch/louer/appartements-geneve/geneve/geneve-15-1201/lumineux-dans-les-combles": "2026-11-09T16:00"
     },
     "Comptoir Immobilier": {
       "https://comptoir-immo.ch": "2026-11-01T15:51",
@@ -258,7 +260,18 @@
       "https://comptoir-immo.ch/vos-demarches": "2026-11-01T15:51",
       "https://comptoir-immo.ch/outils-locataires": "2026-11-01T15:51",
       "https://comptoir-immo.ch/projet-immobilier-a-letranger": "2026-11-01T15:51",
-      "https://comptoir-immo.ch/?post_type=agency&p=486": "2026-11-03T15:48"
+      "https://comptoir-immo.ch/?post_type=agency&p=486": "2026-11-03T15:48",
+      "https://comptoir-immo.ch/location/appartement/Vaud/Nyon": "2026-11-09T16:01",
+      "https://comptoir-immo.ch/location/place-de-parc/Gen%C3%A8ve/Carouge": "2026-11-09T16:01",
+      "https://comptoir-immo.ch/location/place-de-parc/Gen%C3%A8ve/Lancy": "2026-11-09T16:01",
+      "https://comptoir-immo.ch/location/appartement/Vaud": "2026-11-09T16:01",
+      "https://comptoir-immo.ch/location/appartement/Valais": "2026-11-09T16:01",
+      "https://comptoir-immo.ch/location/place-de-parc/Gen%C3%A8ve/Gen%C3%A8ve": "2026-11-09T16:01",
+      "https://comptoir-immo.ch/location/maison/Gen%C3%A8ve": "2026-11-09T16:01",
+      "https://comptoir-immo.ch/location/place-de-parc/Gen%C3%A8ve": "2026-11-09T16:01",
+      "https://comptoir-immo.ch/location/place-de-parc/Gen%C3%A8ve/Th%C3%B4nex": "2026-11-09T16:01",
+      "https://comptoir-immo.ch/location/place-de-parc/Vaud": "2026-11-09T16:01",
+      "https://comptoir-immo.ch/location/place-de-parc/Vaud/Pully": "2026-11-09T16:01"
     },
     "Gerofinance": {
       "https://www.gerofinance.ch": "2026-11-01T15:51",
@@ -574,7 +587,9 @@
       "https://home.spg.ch/ToPage?url=https%3A%2F%2Fwww.spg.ch%2Frecherches-sauvegardees%2F&state=1fwbScyLm6pqsf3KmwMsGXFNB4NNBNmE": "2026-11-09T13:59",
       "https://home.spg.ch/ToPage?url=https%3A%2F%2Fwww.spg.ch%2Frecherches-sauvegardees%2F&state=b7JAkAHJHdVdGit37Zs2PxufH1Z2tRfU": "2026-11-09T13:59",
       "https://home.spg.ch/ToPage?url=https%3A%2F%2Fwww.spg.ch%2Frecherches-sauvegardees%2F&state=s76ZKDvXN4EfMYXqyThz0spyJn8w5vPp": "2026-11-09T14:55",
-      "https://home.spg.ch/ToPage?url=https%3A%2F%2Fwww.spg.ch%2Frecherches-sauvegardees%2F&state=Y1u74Cu1QCaF92JPHJ2qO5CXNqQIzfy6": "2026-11-09T14:55"
+      "https://home.spg.ch/ToPage?url=https%3A%2F%2Fwww.spg.ch%2Frecherches-sauvegardees%2F&state=Y1u74Cu1QCaF92JPHJ2qO5CXNqQIzfy6": "2026-11-09T14:55",
+      "https://home.spg.ch/ToPage?url=https%3A%2F%2Fwww.spg.ch%2Frecherches-sauvegardees%2F&state=fe10kt02m5H6UWIW2DX3HopaZ05tjUCs": "2026-11-09T16:04",
+      "https://home.spg.ch/ToPage?url=https%3A%2F%2Fwww.spg.ch%2Frecherches-sauvegardees%2F&state=y5inhocEuEdo5qzIGmj7tpZKdl6osFtG": "2026-11-09T16:04"
     },
     "Bory & Cie": {
       "https://www.bory.ch": "2026-11-01T15:52",
