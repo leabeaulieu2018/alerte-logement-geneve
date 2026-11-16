@@ -213,7 +213,8 @@
       "https://www.moservernet.ch/louer/appartements-geneve/geneve/geneve-1203/charmilles-rue-de-la-dole-12-63m2": "2026-11-12T10:35",
       "https://www.moservernet.ch/louer/appartements-geneve/geneve/geneve-15-1203/confort-et-situation-privilegiee": "2026-11-12T10:35",
       "https://www.moservernet.ch/louer/appartements-geneve/geneve/geneve-1203/confort-et-situation-privilegiee": "2026-11-13T09:30",
-      "https://www.moservernet.ch/louer/appartements-geneve/geneve/chatelaine-1219/chatelaine-chemin-de-maisonneuve-12b-73m2-2": "2026-11-16T08:50"
+      "https://www.moservernet.ch/louer/appartements-geneve/geneve/chatelaine-1219/chatelaine-chemin-de-maisonneuve-12b-73m2-2": "2026-11-16T08:50",
+      "https://www.moservernet.ch/louer/appartements-geneve/geneve/onex-1213/onex-avenue-du-bois-de-la-chapelle-35-56m2": "2026-11-16T14:17"
     },
     "Comptoir Immobilier": {
       "https://comptoir-immo.ch": "2026-11-01T15:51",
@@ -797,7 +798,10 @@
       "https://home.spg.ch/ToPage?url=https%3A%2F%2Fwww.spg.ch%2Frecherches-sauvegardees%2F&state=4mM3N7NDOD99NaW5GCwccVTuFypZVG3A": "2026-11-16T10:31",
       "https://home.spg.ch/ToPage?url=https%3A%2F%2Fwww.spg.ch%2Frecherches-sauvegardees%2F&state=x6TKJTQOuzNL1Ld52fLmMmySYYTjoHrO": "2026-11-16T10:31",
       "https://home.spg.ch/ToPage?url=https%3A%2F%2Fwww.spg.ch%2Frecherches-sauvegardees%2F&state=b7A0ViGISieUS5mgNq7ugtY19TElf45v": "2026-11-16T11:48",
-      "https://home.spg.ch/ToPage?url=https%3A%2F%2Fwww.spg.ch%2Frecherches-sauvegardees%2F&state=SqOj3QFDCXOJFl2WikeDlAsn94BHVL5e": "2026-11-16T11:48"
+      "https://home.spg.ch/ToPage?url=https%3A%2F%2Fwww.spg.ch%2Frecherches-sauvegardees%2F&state=SqOj3QFDCXOJFl2WikeDlAsn94BHVL5e": "2026-11-16T11:48",
+      "https://home.spg.ch/ToPage?url=https%3A%2F%2Fwww.spg.ch%2Frecherches-sauvegardees%2F&state=jIBowxFBiXnPR7PfcCoq614EmDLu4MYB": "2026-11-16T14:18",
+      "https://home.spg.ch/ToPage?url=https%3A%2F%2Fwww.spg.ch%2Frecherches-sauvegardees%2F&state=yrZIDyC7rayHXjDFrvsfOcGpxuCfhDUV": "2026-11-16T14:18",
+      "https://www.spg.ch/location/appt-appartement/geneve/appartement-geneve-3": "2026-11-16T14:18"
     },
     "Bory & Cie": {
       "https://www.bory.ch": "2026-11-01T15:52",
@@ -822,7 +826,9 @@
       "https://www.bory.ch/louer/70349-guye-1-1203-geneve": "2026-11-02T20:28",
       "https://www.bory.ch/louer/70563-geneve": "2026-11-03T12:42",
       "https://www.bory.ch/louer/70239-appartement-de-3-pieces-au-2eme-etage": "2026-11-05T20:35",
-      "https://www.bory.ch/louer/70526-bel-appartement-renove-aux-paquis": "2026-11-09T12:42"
+      "https://www.bory.ch/louer/70526-bel-appartement-renove-aux-paquis": "2026-11-09T12:42",
+      "https://www.bory.ch/louer/70616-beau-2-pieces-a-onex": "2026-11-16T14:19",
+      "https://www.bory.ch/louer/70613-appartement-2-5-pieces-a-geneve": "2026-11-16T14:19"
     },
     "Wincasa": {
       "https://wincasa.ch/fr-ch": "2026-11-01T15:52",
@@ -858,7 +864,8 @@
       "https://www.rosset.ch/louer/appartement/appartement-de-2-pieces-au-5eme-etage-dans-un-immeuble-sans-ascenseur-10101-000053?returnTo=%3Flocation%3DGen%25C3%25A8ve%26locationKind%3Dcanton%26types%3Dappartement%26maxPrice%3D1600": "2026-11-03T05:52",
       "https://www.rosset.ch/louer/appartement/studio-au-2eme-etage-dans-un-immeuble-avec-ascenseur-2761-000023?returnTo=%3Flocation%3DGen%25C3%25A8ve%26locationKind%3Dcanton%26types%3Dappartement%26maxPrice%3D1600": "2026-11-09T12:43",
       "https://www.rosset.ch/louer/appartement/appartement-de-25-pieces-au-3eme-etage-7434-000042?returnTo=%3Flocation%3DGen%25C3%25A8ve%26locationKind%3Dcanton%26types%3Dappartement%26maxPrice%3D1600": "2026-11-13T05:58",
-      "https://www.rosset.ch/louer/appartement/appartement-de-25-pieces-au-3eme-etage-7434-000032?returnTo=%3Flocation%3DGen%25C3%25A8ve%26locationKind%3Dcanton%26types%3Dappartement%26maxPrice%3D1600": "2026-11-13T05:58"
+      "https://www.rosset.ch/louer/appartement/appartement-de-25-pieces-au-3eme-etage-7434-000032?returnTo=%3Flocation%3DGen%25C3%25A8ve%26locationKind%3Dcanton%26types%3Dappartement%26maxPrice%3D1600": "2026-11-13T05:58",
+      "https://www.rosset.ch/louer/appartement/appartement-de-25-pieces-au-4eme-etage-7434-000042?returnTo=%3Flocation%3DGen%25C3%25A8ve%26locationKind%3Dcanton%26types%3Dappartement%26maxPrice%3D1600": "2026-11-16T14:19"
     },
     "Grange & Cie": {},
     "Privera": {
